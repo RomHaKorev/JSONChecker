@@ -13,6 +13,9 @@ from tabulate import tabulate
 
 import colorama
 
+
+__version__ = 0.1
+
 class CheckMode(enum.Enum):
 	"""
 	Check mode defined for each Expected
@@ -339,12 +342,13 @@ class Checker(object):
 			fh.write("</Check>\n")
 
 def _main(): # pragma: no cover
-	parser = argparse.ArgumentParser(description='Test Checker JSON')
+	parser = argparse.ArgumentParser(description="Test Checker JSON Version {}".format(__version__))
 	parser.add_argument('-e', '--expected', type=str, help='Expected filename', required=True)
 	parser.add_argument('-r', '--record', type=str, help='Messages record filename', required=True)
 	parser.add_argument('-o', '--output', type=str, help='Put the reporting here', required=True)
 	parser.add_argument('-v', '--verbose', default=False, action='store_true', help='Display a report', required=False)
 	args = parser.parse_args()
+
 
 	msgs_expected = [Expected(n) for n in json.load(open(args.expected))]
 	msgs_output = [Message(n) for n in json.load(open(args.record))]

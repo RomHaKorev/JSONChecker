@@ -306,8 +306,6 @@ class TestBasics(unittest.TestCase):
 		m = re.search("Your code has been rated at (.+?)/10", output)
 		self.assertNotEqual(m, None)
 		self.assertEqual(float(m.group(1)), 10.0)
-		return False
-
 
 
 if __name__ == '__main__':
