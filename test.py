@@ -21,7 +21,7 @@ class TestBasics(unittest.TestCase):
 			self.__class__.COMBINATORIAL_EXPECTEDS += copy.deepcopy(expected)
 			self.__class__.COMBINATORIAL_OUTPUTS += copy.deepcopy(output)
 			self.__class__.COMBINATORIAL_RESULTS += copy.deepcopy(results)
-		self.assertEqual(self.chk.check(json_expected=expected, json_output=output, filename_report=None, verbose=display), status)
+		self.assertEqual(self.chk.check(json_expected=expected, json_output=output, filename_report="./foobar.xml", verbose=display), status)
 		self.assertEqual([r.status() for r in self.chk.retained], results)
 		#print(inspect.stack()[1][3])
 
@@ -41,7 +41,7 @@ class TestBasics(unittest.TestCase):
 			"name": "msg_1",
 			"time": 1000})]
 		results = [Status.OK]
-		self.check_test(expected, output, results, 0)
+		self.check_test(expected, output, results, 0, True)
 
 	def test_002_ok_multiple_fields(self):
 		expected = [Expected({"message": {"Field_1": 1, "Field_2": 2, "Field_3": 3.4},
@@ -296,11 +296,101 @@ class TestBasics(unittest.TestCase):
 		self.check_test(expected, output, [Status.MATCH_NOT_FOUND, Status.MATCH_NOT_FOUND], -1)
 		self.assertEqual([r.expected.time for r in self.chk.retained], [20000, 20500])
 
+
+	def test_021_message_with_list_in_field(self):
+		expected = [Expected({"message": {"Field_1": [2, 3, 4, 5, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 21000,
+			"checkMode": "one",
+			"fieldsToCheck": ["Field_1"],
+			"tolerance": "1"})]
+		output = [Message({"message": {"Field_1": [2, 3, 4, 5, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 21000})]
+		self.check_test(expected, output, [Status.OK], 0)
+
+
+	def test_022_message_with_list_in_field_ko(self):
+		expected = [Expected({"message": {"Field_1": [2, 3, 4, 5, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 22000,
+			"checkMode": "one",
+			"fieldsToCheck": ["Field_1"],
+			"tolerance": "1"})]
+		output = [Message({"message": {"Field_1": [2, 3, 4, 9, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 22000})]
+		self.check_test(expected, output, [Status.MATCH_ERROR], -1)
+
+	def test_023_message_with_list_in_field_diff_size(self):
+		expected = [Expected({"message": {"Field_1": [2, 3, 4, 5, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 23000,
+			"checkMode": "one",
+			"fieldsToCheck": ["Field_1"],
+			"tolerance": "1"})]
+		output = [Message({"message": {"Field_1": [2, 3, 4, 5, 6, 7, 8], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 23000})]
+		self.check_test(expected, output, [Status.MATCH_ERROR], -1)
+
+
+	def test_024_message_with_list_in_field_diff_size(self):
+		expected = [Expected({"message": {"Field_1": [2, 3, 4, 5, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 24000,
+			"checkMode": "one",
+			"fieldsToCheck": ["Field_1"],
+			"tolerance": "1"})]
+		output = [Message({"message": {"Field_1": [2, 3, 4], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 24000})]
+		self.check_test(expected, output, [Status.MATCH_ERROR], -1)
+
+
+	def test_025_message_diff_type_num(self):
+		expected = [Expected({"message": {"Field_1": [2, 3, 4, 5, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 25000,
+			"checkMode": "one",
+			"fieldsToCheck": ["Field_1"],
+			"tolerance": "1"})]
+		output = [Message({"message": {"Field_1": 12, "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 25000})]
+		self.check_test(expected, output, [Status.MATCH_ERROR], -1)
+
+
+	def test_026_message_diff_type_str(self):
+		expected = [Expected({"message": {"Field_1": [2, 3, 4, 5, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 26000,
+			"checkMode": "one",
+			"fieldsToCheck": ["Field_1"],
+			"tolerance": "1"})]
+		output = [Message({"message": {"Field_1": "booh", "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 26000})]
+		self.check_test(expected, output, [Status.MATCH_ERROR], -1)
+
+	def test_027_message_diff_type_str_content_eq(self):
+		expected = [Expected({"message": {"Field_1": [2, 3, 4, 5, 6], "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 27000,
+			"checkMode": "one",
+			"fieldsToCheck": ["Field_1"],
+			"tolerance": "1"})]
+		output = [Message({"message": {"Field_1": "23456", "Field_2": 2, "Field_3": 3.4},
+			"name": "msg_1",
+			"time": 27000})]
+		self.check_test(expected, output, [Status.MATCH_ERROR], -1)
+
 	def test_999_combinatorics(self):
 		self.check_test(TestBasics.COMBINATORIAL_EXPECTEDS, TestBasics.COMBINATORIAL_OUTPUTS, TestBasics.COMBINATORIAL_RESULTS, -1, combin=False)
 
 
-	def test_000_pylint(self):
+class TestQuality(unittest.TestCase):
+	def test_pylint(self):
 		(pylint_stdout, _) = lint.py_run(os.path.join(os.path.dirname(__file__), "test_checker.py"), return_std=True)
 		output = pylint_stdout.read()
 		m = re.search("Your code has been rated at (.+?)/10", output)
@@ -309,6 +399,10 @@ class TestBasics(unittest.TestCase):
 
 
 if __name__ == '__main__':
-	unittest.main()
-	# suite = unittest.TestLoader().loadTestsFromTestCase(TestBasics)
-	# unittest.TextTestRunner(verbosity=1).run(suite)
+	#unittest.main()
+	suite = unittest.TestLoader().loadTestsFromTestCase(TestBasics)
+	unittest.TextTestRunner(verbosity=1).run(suite)
+
+	suite = unittest.TestLoader().loadTestsFromTestCase(TestQuality)
+	unittest.TextTestRunner(verbosity=1).run(suite)
+

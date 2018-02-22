@@ -14,7 +14,40 @@ from tabulate import tabulate
 import colorama
 
 
-__version__ = 0.1
+__version__ = 0.2
+
+
+def fuzzy_sub(a, b):
+	"""
+	Returns the difference between a and b. Substraction for number.
+	For strings: it returns the sum of difference between positions of the letters.
+	"""
+	diff = 0
+	try:
+		return float(a) - float(b)
+	except ValueError:
+		_a = str(a)
+		_b = str(b)
+		diff = abs(len(_a) - len(_b))
+		for chr1, chr2 in zip(_a, _b):
+			diff += abs(string.printable.index(chr1) - string.printable.index(chr2))
+	except TypeError:
+		_a = a
+		_b = b
+		if not isinstance(a, list):
+			_a = str(a)
+		if not isinstance(b, list):
+			_b = str(b)
+		if type(_a) != type(_b):
+			diff += 1
+		diff += abs(len(_a) - len(_b))
+		for v1, v2 in zip(_a, _b):
+			try:
+				diff += abs(float(v1) - float(v2))
+			except ValueError:
+				diff += abs(string.printable.index(str(v1)) - string.printable.index(str(v2)))
+			#diff += abs(string.printable.index(chr1) - string.printable.index(chr2))
+	return diff
 
 class CheckMode(enum.Enum):
 	"""
@@ -86,13 +119,15 @@ class Match(object):
 					if k not in self.msg._fields:
 						try:
 							self.score += abs(float(v))
-						except ValueError:
+						except (ValueError, TypeError):
 							self.score += len(v) + 1
 					elif self.msg._fields[k] != v:
-						try:
-							self.score += abs(float(self.msg._fields[k]) - float(v))
-						except ValueError:
-							self.score += abs(len(self.msg._fields[k]) - len(str(v))) + 1
+						self.score += fuzzy_sub(self.msg._fields[k], v)
+						# try:
+						# 	self.score += abs(float(self.msg._fields[k]) - float(v))
+						# except (ValueError, TypeError):
+						# 	if 
+						# 	self.score += abs(len(self.msg._fields[k]) - len(str(v))) + 1
 			else:
 				if self.expected.check_mode != CheckMode.NOT:
 					self.score = -2
@@ -190,7 +225,7 @@ class Match(object):
 		return s
 
 
-	def to_xml(self):
+	def to_xml(self): # pragma: no cover
 		"""
 		Converts `self` to a XML Node
 		"""
@@ -222,21 +257,6 @@ def _fuzzy_compare(src, potential_matches):
 	Compares the `src` (an Expected) to a list of potential matching Messages.
 	It will return a list of Message that match or aim to match the `src`
 	"""
-	def fuzzy_sub(a, b):
-		"""
-		Returns the difference between a and b. Substraction for number.
-		For strings: it returns the sum of difference between positions of the letters.
-		"""
-		try:
-			return float(a) - float(b)
-		except ValueError:
-			a = str(a)
-			b = str(b)
-			diff = abs(len(a) - len(b))
-			for chr1, chr2 in zip(a, b):
-				diff += abs(string.printable.index(chr1) - string.printable.index(chr2))
-			return diff
-
 	all_fields_src = src._fields.values()
 	diff = list()
 	for msg in potential_matches:
@@ -330,7 +350,7 @@ class Checker(object):
 
 		return result
 
-	def to_xml(self, filename):
+	def to_xml(self, filename): # pragma: no cover
 		"""
 		Writes Matching of `self` in `filename` as xml content.
 		"""
@@ -348,7 +368,6 @@ def _main(): # pragma: no cover
 	parser.add_argument('-o', '--output', type=str, help='Put the reporting here', required=True)
 	parser.add_argument('-v', '--verbose', default=False, action='store_true', help='Display a report', required=False)
 	args = parser.parse_args()
-
 
 	msgs_expected = [Expected(n) for n in json.load(open(args.expected))]
 	msgs_output = [Message(n) for n in json.load(open(args.record))]
