@@ -391,15 +391,16 @@ class TestBasics(unittest.TestCase):
 
 class TestQuality(unittest.TestCase):
 	def test_pylint(self):
-		(pylint_stdout, _) = lint.py_run(os.path.join(os.path.dirname(__file__), "test_checker.py"), return_std=True)
+		curr_dir = os.path.dirname(__file__)
+		(pylint_stdout, _) = lint.py_run(os.path.join(curr_dir, "test_checker.py"), return_std=True)
 		output = pylint_stdout.read()
-		m = re.search("Your code has been rated at (.+?)/10", output)
+		m = re.search("Your code has been rated at ([\\d\\.]+)/10 \\(previous", output)
 		self.assertNotEqual(m, None)
-		self.assertEqual(float(m.group(1)), 10.0)
+		ev = float(m.group(1))
+		self.assertEqual(ev, 10.0)
 
 
 if __name__ == '__main__':
-	#unittest.main()
 	suite = unittest.TestLoader().loadTestsFromTestCase(TestBasics)
 	unittest.TextTestRunner(verbosity=1).run(suite)
 

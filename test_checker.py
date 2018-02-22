@@ -6,6 +6,7 @@ import argparse
 import datetime
 import enum
 import functools
+import itertools
 import json
 import string
 
@@ -14,7 +15,15 @@ from tabulate import tabulate
 import colorama
 
 
-__version__ = 0.2
+__version__ = 0.3
+
+
+
+def pretty_print(data, headers, fields):
+	"""
+	Used to print tabular data in a terminal.
+	"""
+	return tabulate(list(itertools.zip_longest(fields, *data)), headers=headers)
 
 
 def fuzzy_sub(a, b):
@@ -38,14 +47,14 @@ def fuzzy_sub(a, b):
 			_a = str(a)
 		if not isinstance(b, list):
 			_b = str(b)
-		if type(_a) != type(_b):
+		if not isinstance(_a, type(_b)): #pylint disable: unidiomatic-typecheck
 			diff += 1
 		diff += abs(len(_a) - len(_b))
-		for v1, v2 in zip(_a, _b):
+		for val1, val2 in zip(_a, _b):
 			try:
-				diff += abs(float(v1) - float(v2))
+				diff += abs(float(val1) - float(val2))
 			except ValueError:
-				diff += abs(string.printable.index(str(v1)) - string.printable.index(str(v2)))
+				diff += abs(string.printable.index(str(val1)) - string.printable.index(str(val2)))
 			#diff += abs(string.printable.index(chr1) - string.printable.index(chr2))
 	return diff
 
@@ -123,11 +132,6 @@ class Match(object):
 							self.score += len(v) + 1
 					elif self.msg._fields[k] != v:
 						self.score += fuzzy_sub(self.msg._fields[k], v)
-						# try:
-						# 	self.score += abs(float(self.msg._fields[k]) - float(v))
-						# except (ValueError, TypeError):
-						# 	if 
-						# 	self.score += abs(len(self.msg._fields[k]) - len(str(v))) + 1
 			else:
 				if self.expected.check_mode != CheckMode.NOT:
 					self.score = -2
@@ -187,35 +191,36 @@ class Match(object):
 
 		default_expected = lambda k: expected[k] if k in expected else "-"
 
-		title = lambda l: [colorama.Style.BRIGHT + f + colorama.Style.RESET_ALL for f in l]
-		tab = functools.partial(tabulate, headers=title(['', 'Time', 'Name'] + fields), numalign='left', stralign='left')
+		info = lambda l: [colorama.Fore.BLUE + colorama.Style.BRIGHT + str(f) + colorama.Style.RESET_ALL for f in l]
+		title = lambda l: [colorama.Style.BRIGHT + str(f) + colorama.Style.RESET_ALL for f in l]
+		tab = functools.partial(pretty_print, headers=title(['Field', 'Expected', 'output']), fields=title(["Time", "Name"]) + fields)
 
 		if self.expected is None:
-			data_output = ['Output', self.msg.time, self.msg.name] + [colored_red(k) for k in fields]
+			data_output = info([self.msg.time, self.msg.name]) + [colored_red(k) for k in fields]
 			s = colorama.Fore.CYAN + "This Output has no expected\n" + colorama.Style.RESET_ALL
-			s += str(tab([data_output]))
+			s += str(tab([[], data_output]))
 			return s
 
 		if self.msg is None:
 			if self.expected.check_mode == CheckMode.ONE:
-				data_expected = ['Expected', self.expected.time, self.expected.name] + [default_expected(k) for k in fields]
+				data_expected = info([self.expected.time, self.expected.name]) + [default_expected(k) for k in fields]
 				s = colorama.Fore.RED + "No output for this required expected \n" + colorama.Style.RESET_ALL
-				s += str(tab([data_expected]))
+				s += str(tab([data_expected, []]))
 				return s
-			data_expected = ['Expected', self.expected.time, self.expected.name] + [default_expected(k) for k in fields]
+			data_expected = info([self.expected.time, self.expected.name]) + [default_expected(k) for k in fields]
 			s = colorama.Fore.GREEN + "No output for this rejected expected \n" + colorama.Style.RESET_ALL
-			s += str(tab([data_expected]))
+			s += str(tab([data_expected, []]))
 			return s
 
 		if self.expected and self.msg and self.score not in (0, -1):
-			data_output = ['Output', self.msg.time, self.msg.name] + [colored_red(k) for k in fields]
-			data_expected = ['Expected', self.expected.time, self.expected.name] + [default_expected(k) for k in fields]
+			data_output = info([self.msg.time, self.msg.name]) + [colored_red(k) for k in fields]
+			data_expected = info([self.expected.time, self.expected.name]) + [default_expected(k) for k in fields]
 			s = colorama.Fore.RED + "Output does not match Expected\n" + colorama.Style.RESET_ALL
 			s += str(tab([data_expected, data_output]))
 			return s
 
-		data_output = ['Output', self.msg.time, self.msg.name] + [colored_red(k) for k in fields]
-		data_expected = ['Expected', self.expected.time, self.expected.name] + [default_expected(k) for k in fields]
+		data_output = info([self.msg.time, self.msg.name]) + [colored_red(k) for k in fields]
+		data_expected = info([self.expected.time, self.expected.name]) + [default_expected(k) for k in fields]
 		s = ""
 		if self.expected.check_mode == CheckMode.NOT:
 			s = colorama.Fore.RED + "Rejected Expected matches this Output \n" + colorama.Style.RESET_ALL
@@ -283,7 +288,7 @@ class Checker(object):
 		self.retained = list()
 		self.status = False
 
-	def check(self, json_expected, json_output, filename_report, verbose=False):
+	def check(self, json_expected, json_output, filename_report=None, verbose=False):
 		"""
 		Checks if the elements in `json_expected` match elements in `json_output`.
 		Returns 0 if OK. Returns -1 otherwise.
